@@ -1,8 +1,12 @@
 # MessagePulse 2.0 - AI 时代消息基础设施设计文档
 
-**版本**: 2.0
+**版本**: 2.1
 **日期**: 2026-03-02
 **作者**: AI 协作设计
+
+**更新记录**：
+- v2.1 (2026-03-02): 新增传统功能融合设计（第十一章）
+- v2.0 (2026-03-02): 初始版本，完整 AI 时代架构设计
 
 ---
 
@@ -1310,7 +1314,713 @@ volumes:
 
 ---
 
-## 十、总结
+## 十一、传统功能融合设计
+
+### 11.1 设计目标
+
+MessagePulse 2.0 在面向 AI 时代的同时，必须完整保留传统消息推送系统的核心功能，确保：
+
+1. **向后兼容**：支持传统业务系统（Java、.NET、PHP 等）接入
+2. **功能完整**：保留定时任务、批量发送、用户管理等传统功能
+3. **架构统一**：传统功能与 AI 时代特性在统一架构下实现
+4. **渐进演进**：支持从传统系统平滑迁移到 AI 时代架构
+
+### 11.2 传统功能架构
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  接入层（API 优先）                                      │
+├─────────────────────────────────────────────────────────┤
+│  • REST API（统一接口）                                  │
+│    - AI 系统接入（OpenClaw、Cursor、Claude Code）       │
+│    - 传统业务系统接入（Java、.NET、PHP）                │
+│    - 多语言 SDK（Java、.NET、PHP、Python）             │
+│                                                         │
+│  • Web 管理界面（分阶段实现）                            │
+│    Phase A（最小化）：                                  │
+│    - 发送记录查询                                        │
+│    - 消息状态查看                                        │
+│    - 基础统计概览                                        │
+│    - API Key 管理                                       │
+│    - Channel Skills 状态监控                            │
+│                                                         │
+│    Phase B（标准）：                                    │
+│    - 消息模板管理                                        │
+│    - 用户订阅管理                                        │
+│    - 渠道配置管理                                        │
+│    - 实时监控大屏                                        │
+│                                                         │
+│    Phase C（完整，愿景）：                              │
+│    - 用户偏好设置                                        │
+│    - 定时任务管理                                        │
+│    - 批量发送界面                                        │
+│    - 账单和配额管理                                      │
+└─────────────────────────────────────────────────────────┘
+                         ↓
+┌─────────────────────────────────────────────────────────┐
+│  任务调度层（XXL-Job）                                   │
+├─────────────────────────────────────────────────────────┤
+│  • 定时任务：Cron 表达式调度                            │
+│    - 每天早上 9 点发送报表                              │
+│    - 每小时发送统计摘要                                  │
+│                                                         │
+│  • 批量任务：大容量消息处理                             │
+│    - 向 1000 个用户群发通知                             │
+│    - 文件导入批量发送                                    │
+│                                                         │
+│  • 延迟任务：定时发送                                   │
+│    - 5 分钟后发送提醒                                    │
+│    - 延迟到指定时间发送                                  │
+│                                                         │
+│  • 任务管理：                                           │
+│    - 任务依赖                                            │
+│    - 失败重试                                            │
+│    - 执行日志                                            │
+└─────────────────────────────────────────────────────────┘
+                         ↓
+┌─────────────────────────────────────────────────────────┐
+│  用户管理层（最小化 + 外部集成）                          │
+├─────────────────────────────────────────────────────────┤
+│  • 最小化用户管理：                                      │
+│    - 用户接收者信息（userId、phone、email 等）         │
+│    - 用户订阅状态（订阅/退订）                           │
+│    - 用户偏好设置（接收渠道：短信/邮件/飞书）           │
+│    - 用户标签分组                                        │
+│                                                         │
+│  • 外部用户系统集成：                                    │
+│    - API 对接企业现有用户系统                           │
+│    - 用户信息实时查询                                    │
+│    - 订阅/偏好数据由外部系统管理                        │
+│    - 支持 SSO 单点登录                                  │
+│                                                         │
+│  • 用户数据存储：                                       │
+│    - 核心用户信息：MySQL                                │
+│    - 查询索引：Redis 缓存                                │
+│    - 外部系统：API 实时查询                              │
+└─────────────────────────────────────────────────────────┘
+                         ↓
+┌─────────────────────────────────────────────────────────┐
+│  监控与统计层                                           │
+├─────────────────────────────────────────────────────────┤
+│  • Prometheus + Grafana（主要监控）：                    │
+│    - 实时 QPS 统计                                      │
+│    - 消息成功率趋势                                      │
+│    - 接口延迟分布（P50/P95/P99）                         │
+│    - 错误率统计                                          │
+│    - 系统资源监控                                        │
+│                                                         │
+│  • Flink（可选组件，学习演示）：                         │
+│    - Kafka 消息流实时统计                                │
+│    - 链路追踪数据实时聚合                                │
+│    - 租户级别实时统计                                    │
+│    - 状态展示延迟 < 3 秒                                 │
+│    - Docker Compose 配置中默认禁用                      │
+│                                                         │
+│  • SkyWalking（链路追踪）：                              │
+│    - 全链路耗时分析                                      │
+│    - 服务依赖拓扑                                        │
+│    - 异常追踪                                            │
+└─────────────────────────────────────────────────────────┘
+```
+
+### 11.3 传统系统接入方案
+
+#### 11.3.1 多语言 SDK
+
+为传统业务系统提供官方 SDK，简化接入成本：
+
+**Java SDK**
+```java
+// Maven 依赖
+<dependency>
+    <groupId>com.messagepulse</groupId>
+    <artifactId>messagepulse-client-java</artifactId>
+    <version>2.0.0</version>
+</dependency>
+
+// 使用示例
+MessagePulseClient client = new MessagePulseClient.Builder()
+    .apiKeyId("ak_xxx")
+    .apiKeySecret("sk_xxx")
+    .baseUrl("http://messagepulse.example.com")
+    .build();
+
+Message message = Message.builder()
+    .content("您的验证码是 123456")
+    .recipient(Recipient.builder()
+        .phone("13800138000")
+        .build())
+    .channels(Arrays.asList("sms", "feishu"))
+    .build();
+
+SendMessageResponse response = client.sendMessage(message);
+```
+
+**.NET SDK**
+```csharp
+// NuGet 包
+Install-Package MessagePulse.Client
+
+// 使用示例
+var client = new MessagePulseClient(new MessagePulseOptions {
+    ApiKeyId = "ak_xxx",
+    ApiKeySecret = "sk_xxx",
+    BaseUrl = "http://messagepulse.example.com"
+});
+
+var message = new Message {
+    Content = "您的验证码是 123456",
+    Recipient = new Recipient {
+        Phone = "13800138000"
+    },
+    Channels = new List<string> { "sms", "feishu" }
+};
+
+var response = await client.SendMessageAsync(message);
+```
+
+**PHP SDK**
+```php
+// Composer
+composer require messagepulse/client-php
+
+// 使用示例
+use MessagePulse\Client;
+use MessagePulse\Message;
+
+$client = new MessagePulse\Client([
+    'api_key_id' => 'ak_xxx',
+    'api_key_secret' => 'sk_xxx',
+    'base_url' => 'http://messagepulse.example.com'
+]);
+
+$message = new Message([
+    'content' => '您的验证码是 123456',
+    'recipient' => [
+        'phone' => '13800138000'
+    ],
+    'channels' => ['sms', 'feishu']
+]);
+
+$response = $client->sendMessage($message);
+```
+
+#### 11.3.2 接入文档
+
+为每种语言提供详细的接入文档：
+- 快速开始指南
+- 完整 API 参考
+- 示例代码
+- 最佳实践
+- 常见问题 FAQ
+
+### 11.4 XXL-Job 任务调度集成
+
+#### 11.4.1 XXL-Job 架构
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  XXL-Job 调度中心                                        │
+│  - 任务配置管理                                          │
+│  - 任务调度执行                                          │
+│  - 任务监控告警                                          │
+└─────────────────────────────────────────────────────────┘
+                         ↓
+┌─────────────────────────────────────────────────────────┐
+│  MessagePulse 执行器                                     │
+│  - 接收调度任务                                          │
+│  - 执行发送逻辑                                          │
+│  - 返回执行结果                                          │
+└─────────────────────────────────────────────────────────┘
+                         ↓
+┌─────────────────────────────────────────────────────────┐
+│  Kafka                                                   │
+│  messagepulse.messages Topic                             │
+└─────────────────────────────────────────────────────────┘
+```
+
+#### 11.4.2 任务类型
+
+**定时任务**
+```java
+@XxlJob("dailyReportHandler")
+public void dailyReportHandler() {
+    // 查询需要发送日报的用户
+    List<User> users = userService.getUsersSubscribedTo("daily_report");
+
+    for (User user : users) {
+        // 构建消息
+        Message message = Message.builder()
+            .template(new Template("daily_report_v1"))
+            .variable("data", reportService.generateReport(user))
+            .recipient(user.getRecipient())
+            .channels(Arrays.asList("email"))
+            .build();
+
+        // 发送消息
+        messageService.sendMessage(message);
+    }
+}
+```
+
+**批量任务**
+```java
+@XxlJob("batchSendHandler")
+public void batchSendHandler() {
+    String taskId = XxlJobHelper.getJobParam();
+
+    // 获取批量任务配置
+    BatchTask batchTask = batchTaskService.getTask(taskId);
+
+    // 分批处理，避免一次性加载过多数据
+    int pageSize = 1000;
+    int pageNum = 1;
+
+    while (true) {
+        List<User> users = userService.getUsersByBatch(
+            batchTask.getBatchId(),
+            pageNum,
+            pageSize
+        );
+
+        if (users.isEmpty()) {
+            break;
+        }
+
+        // 批量发送消息
+        for (User user : users) {
+            Message message = buildMessage(batchTask, user);
+            messageService.sendMessage(message);
+        }
+
+        pageNum++;
+    }
+}
+```
+
+**延迟任务**
+```java
+@XxlJob("delayedSendHandler")
+public void delayedSendHandler() {
+    String messageId = XxlJobHelper.getJobParam();
+
+    // 从数据库查询延迟任务
+    DelayedTask task = delayedTaskService.getTask(messageId);
+
+    // 检查是否需要执行
+    if (task.getScheduledAt().isBefore(LocalDateTime.now())) {
+        // 发送消息
+        messageService.sendMessage(task.getMessage());
+
+        // 标记任务已完成
+        task.setStatus(DelayedTask.Status.COMPLETED);
+        delayedTaskService.save(task);
+    }
+}
+```
+
+#### 11.4.3 Docker Compose 配置
+
+```yaml
+# docker-compose.yml 新增 XXL-Job 服务
+xxl-job-admin:
+  image: xuxueli/xxl-job-admin:2.4.0
+  ports:
+    - "8080:8080"
+  environment:
+    - PARAMS="--spring.datasource.url=jdbc:mysql://mysql:3306/xxl_job?useSSL=false --spring.datasource.username=root --spring.datasource.password=password"
+  depends_on:
+    - mysql
+
+xxl-job-executor:
+  image: messagepulse/core:2.0.0
+  environment:
+    - XXL_JOB_ADMIN_ADDRESSES=http://xxl-job-admin:8080/xxl-job-admin
+    - XXL_JOB_EXECUTOR_PORT=9999
+  depends_on:
+    - xxl-job-admin
+```
+
+### 11.5 用户管理设计
+
+#### 11.5.1 用户数据模型
+
+```sql
+-- 用户接收者信息表
+CREATE TABLE recipients (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    tenant_id VARCHAR(100) NOT NULL,
+    user_id VARCHAR(100) NOT NULL,
+
+    -- 联系方式
+    phone VARCHAR(20),
+    email VARCHAR(255),
+    wechat_openid VARCHAR(255),
+    feishu_user_id VARCHAR(255),
+
+    -- 订阅状态
+    subscription_enabled BOOLEAN DEFAULT TRUE,
+    subscribed_channels JSON,  -- ["sms", "email", "feishu"]
+
+    -- 用户偏好
+    preferred_channels JSON,  -- 按优先级排序
+    quiet_hours_start TIME,   -- 免打扰开始时间
+    quiet_hours_end TIME,     -- 免打扰结束时间
+
+    -- 用户标签
+    tags JSON,  -- ["VIP", "active", "churned"]
+
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP,
+
+    UNIQUE KEY uk_tenant_user (tenant_id, user_id),
+    INDEX idx_phone (phone),
+    INDEX idx_email (email)
+);
+```
+
+#### 11.5.2 外部用户系统集成
+
+```java
+@Service
+public class ExternalUserIntegrationService {
+
+    private final RestTemplate restTemplate;
+    private final RedisTemplate<String, User> userCache;
+
+    /**
+     * 从外部系统查询用户信息
+     */
+    public User getUserFromExternal(String tenantId, String userId) {
+        // 1. 先查缓存
+        String cacheKey = String.format("user:%s:%s", tenantId, userId);
+        User cached = userCache.opsForValue().get(cacheKey);
+        if (cached != null) {
+            return cached;
+        }
+
+        // 2. 调用外部系统 API
+        String externalUrl = getExternalUserUrl(tenantId);
+        User user = restTemplate.getForObject(
+            externalUrl + "/api/users/" + userId,
+            User.class
+        );
+
+        // 3. 存入缓存
+        userCache.opsForValue().set(cacheKey, user, Duration.ofMinutes(5));
+
+        return user;
+    }
+
+    /**
+     * 同步用户订阅状态到外部系统
+     */
+    public void syncSubscriptionStatus(String tenantId, String userId, SubscriptionStatus status) {
+        String externalUrl = getExternalUserUrl(tenantId);
+        restTemplate.postForObject(
+            externalUrl + "/api/users/" + userId + "/subscription",
+            status,
+            Void.class
+        );
+    }
+}
+```
+
+#### 11.5.3 用户订阅管理
+
+```java
+@RestController
+@RequestMapping("/api/recipients")
+public class RecipientController {
+
+    /**
+     * 用户订阅渠道
+     */
+    @PostMapping("/{userId}/subscribe")
+    public ResponseEntity<Void> subscribe(
+            @PathVariable String userId,
+            @RequestBody SubscribeRequest request) {
+
+        Recipient recipient = recipientService.findByUserId(userId);
+
+        // 添加订阅渠道
+        request.getChannels().forEach(channel -> {
+            recipient.getSubscribedChannels().add(channel);
+        });
+
+        recipientService.save(recipient);
+
+        // 同步到外部系统
+        if (recipient.isExternal()) {
+            externalUserService.syncSubscriptionStatus(
+                recipient.getTenantId(),
+                userId,
+                recipient.getSubscriptionStatus()
+            );
+        }
+
+        return ResponseEntity.ok().build();
+    }
+
+    /**
+     * 用户退订渠道
+     */
+    @PostMapping("/{userId}/unsubscribe")
+    public ResponseEntity<Void> unsubscribe(
+            @PathVariable String userId,
+            @RequestBody UnsubscribeRequest request) {
+
+        Recipient recipient = recipientService.findByUserId(userId);
+
+        // 移除订阅渠道
+        request.getChannels().forEach(channel -> {
+            recipient.getSubscribedChannels().remove(channel);
+        });
+
+        recipientService.save(recipient);
+
+        return ResponseEntity.ok().build();
+    }
+}
+```
+
+### 11.6 Flink 实时统计（可选组件）
+
+#### 11.6.1 Flink 在架构中的定位
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  Kafka Topics                                            │
+│  - messagepulse.messages                                │
+│  - messagepulse.receipts                                │
+└─────────────────────────────────────────────────────────┘
+                         ↓
+┌─────────────────────────────────────────────────────────┐
+│  Flink Streaming（可选）                                 │
+│  - 实时 QPS 统计                                        │
+│  - 消息成功率趋势                                       │
+│  - 租户级别实时统计                                     │
+│  - 异常检测                                             │
+└─────────────────────────────────────────────────────────┘
+                         ↓
+┌─────────────────────────────────────────────────────────┐
+│  实时统计结果存储                                        │
+│  - Redis（实时数据，1 小时）                             │
+│  - MySQL（聚合数据，24 小时）                            │
+└─────────────────────────────────────────────────────────┘
+                         ↓
+┌─────────────────────────────────────────────────────────┐
+│  Web 界面展示                                            │
+│  - 实时 QPS 监控                                         │
+│  - 成功率趋势图                                         │
+│  - 租户使用统计                                         │
+└─────────────────────────────────────────────────────────┘
+```
+
+#### 11.6.2 Flink Job 示例
+
+```java
+public class MessageStatisticsJob {
+
+    public static void main(String[] args) throws Exception {
+        // 创建执行环境
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+        // 创建 Kafka Source
+        FlinkKafkaConsumer<Message> kafkaSource = new FlinkKafkaConsumer<>(
+            "messagepulse.messages",
+            new MessageDeserializationSchema(),
+            getKafkaProperties()
+        );
+
+        DataStream<Message> messageStream = env.addSource(kafkaSource);
+
+        // 实时 QPS 统计（1秒窗口）
+        messageStream
+            .keyBy(Message::getTenantId)
+            .window(TumblingProcessingTimeWindows.of(Time.seconds(1)))
+            .aggregate(new QPSAggregator())
+            .addSink(new RedisSink());
+
+        // 消息成功率统计（1分钟窗口）
+        messageStream
+            .keyBy(Message::getTenantId)
+            .window(TumblingProcessingTimeWindows.of(Time.minutes(1)))
+            .aggregate(new SuccessRateAggregator())
+            .addSink(new MySQLSink());
+
+        // 执行
+        env.execute("MessagePulse Statistics");
+    }
+}
+```
+
+#### 11.6.3 Docker Compose 配置
+
+```yaml
+# Flink（可选，默认注释掉）
+flink-jobmanager:
+  image: flink:1.18
+  ports:
+    - "8081:8081"
+  environment:
+    - FLINK_PROPERTIES=jobmanager.rpc.address:flink-jobmanager
+  command: jobmanager
+  # 取消注释以启用
+  # depends_on:
+  #   - kafka
+
+flink-taskmanager:
+  image: flink:1.18
+  environment:
+    - FLINK_PROPERTIES=jobmanager.rpc.address:flink-jobmanager
+  command: taskmanager
+  # 取消注释以启用
+  # depends_on:
+  #   - flink-jobmanager
+```
+
+### 11.7 消息查询设计
+
+#### 11.7.1 分层查询方案
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  查询接口层                                              │
+├─────────────────────────────────────────────────────────┤
+│  • Web 界面：基础查询                                    │
+│    - 按消息 ID 查询                                      │
+│    - 按手机号/邮箱查询（最近 7 天）                      │
+│    - 按时间范围查询                                      │
+│                                                         │
+│  • REST API：完整查询能力                                │
+│    - 支持多条件组合查询                                  │
+│    - 支持分页和排序                                     │
+│    - 支持聚合统计                                        │
+│                                                         │
+│  • 运营查询：高级功能                                    │
+│    - 自定义 SQL 查询（安全限制）                        │
+│    - 数据导出（Excel、CSV）                              │
+│    - BI 工具对接                                        │
+└─────────────────────────────────────────────────────────┘
+                         ↓
+┌─────────────────────────────────────────────────────────┐
+│  数据存储层（冷热分离）                                  │
+├─────────────────────────────────────────────────────────┤
+│  • 热数据（7 天）：MySQL                                │
+│    - 频繁查询的数据                                     │
+│    - 支持复杂查询                                       │
+│                                                         │
+│  • 温数据（30 天）：Elasticsearch（可选）                │
+│    - 全文搜索                                           │
+│    - 聚合统计                                           │
+│                                                         │
+│  • 冷数据（90 天+）：对象存储（可选）                    │
+│    - 归档存储                                           │
+│    - 成本优化                                           │
+└─────────────────────────────────────────────────────────┘
+```
+
+#### 11.7.2 查询 API 设计
+
+```
+GET /api/v1/messages/query
+
+Query Parameters:
+  - messageId: 消息 ID（精确查询）
+  - recipient: 接收者（手机号/邮箱）
+  - status: 消息状态（PENDING/PROCESSING/DELIVERED/FAILED）
+  - channel: 渠道（sms/email/feishu）
+  - startDate: 开始时间
+  - endDate: 结束时间
+  - tenantId: 租户 ID
+  - page: 页码（默认 1）
+  - size: 每页大小（默认 20，最大 100）
+  - sort: 排序字段（createdAt/sentAt）
+  - order: 排序方向（asc/desc）
+
+Response:
+{
+  "total": 1000,
+  "page": 1,
+  "size": 20,
+  "messages": [
+    {
+      "messageId": "msg_xxx",
+      "status": "DELIVERED",
+      "content": "...",
+      "recipient": {...},
+      "channels": ["sms", "email"],
+      "createdAt": "2026-03-02T10:00:00Z",
+      "deliveredAt": "2026-03-02T10:00:03Z",
+      "durationMs": 3000
+    }
+  ]
+}
+```
+
+### 11.8 传统功能保留清单
+
+| 传统功能 | 实现方式 | 优先级 | 说明 |
+|---------|---------|--------|------|
+| ✅ 双缓冲布隆过滤器去重 | Guava BloomFilter | P0 | 5 分钟窗口，0.01% 误判率 |
+| ✅ 分阶段消息撤回 | 消息状态机 + Redis | P0 | 根据消息状态采取不同策略 |
+| ✅ 性能指标（12000 QPS） | Kafka 异步解耦 | P0 | 接口层 QPS，P99 < 20ms |
+| ✅ 死信队列 DLQ | Kafka DLQ Topic | P0 | 自动重试 + 人工介入 |
+| ✅ 多语言 SDK | Java/.NET/PHP/Python | P1 | 简化传统系统接入 |
+| ✅ XXL-Job 定时任务 | XXL-Job 集成 | P1 | 定时/批量/延迟发送 |
+| ✅ Web 管理界面 | Spring Boot + Vue.js | P1 | 分阶段实现（A/B/C） |
+| ✅ 用户管理 | MySQL + Redis | P1 | 最小化管理 + 外部集成 |
+| ✅ Flink 实时统计 | Flink Streaming | P2 | 可选组件，学习演示 |
+| ✅ 消息查询 | MySQL + Elasticsearch | P1 | 冷热分离，分层次查询 |
+
+### 11.9 向后兼容性保证
+
+#### 11.9.1 API 版本管理
+
+```
+/v1/api/* - 当前稳定版本
+/v2/api/* - 新功能版本（AI 时代特性）
+```
+
+#### 11.9.2 配置兼容
+
+```yaml
+# 保留传统配置项
+messagepulse:
+  # 传统功能配置
+  traditional:
+    xxl-job:
+      enabled: true
+      admin-addresses: http://localhost:8080/xxl-job-admin
+
+    user-management:
+      mode: minimal  # minimal | external
+      external-api-url: http://external-system/api
+
+    flink:
+      enabled: false  # 默认禁用
+```
+
+#### 11.9.3 渐进式迁移
+
+```
+阶段 1：传统系统使用 REST API + SDK
+    ↓
+阶段 2：接入 XXL-Job，支持定时/批量任务
+    ↓
+阶段 3：启用 Web 管理界面，提升运营效率
+    ↓
+阶段 4：集成 AI 系统（OpenClaw 等）
+    ↓
+阶段 5：启用 Guide Skill，支持动态格式
+    ↓
+阶段 6：完整 AI 时代架构
+```
+
+---
+
+## 十二、总结
 
 MessagePulse 2.0 通过以下设计实现了 AI 时代消息基础设施的目标：
 
