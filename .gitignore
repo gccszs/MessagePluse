@@ -46,3 +46,6 @@ out/
 
 # Docker
 docker-compose.override.yml
+
+# 项目文档（保留本地）
+项目二/

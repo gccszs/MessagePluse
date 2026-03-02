@@ -1,0 +1,53 @@
+# Multi-stage build for MessagePulse Core
+FROM maven:3.8.6-eclipse-temurin-17 AS builder
+
+WORKDIR /app
+
+# Copy Maven wrapper and pom.xml
+COPY mvnw .COPY .mvn .mvn
+COPY pom.xml .
+
+# Download dependencies (will be cached if pom.xml doesn't change)
+RUN mvn dependency:go-offline -B
+
+# Copy source code
+COPY src ./src
+
+# Build application
+RUN mvn clean package -DskipTests -B
+
+# Runtime stage
+FROM eclipse-temurin:17-jre-alpine
+
+# Add user for running the application
+RUN addgroup -S spring && adduser -S spring -G spring
+USER spring:spring
+
+# Install curl for health check
+RUN apk add --no-cache curl
+
+# Copy built artifact from builder stage
+COPY --from=builder /app/target/messagepulse-core*.jar app.jar
+
+# Create directory for logs
+RUN mkdir /app/logs
+
+# Expose ports
+EXPOSE 8080
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+  CMD curl -f http://localhost:8080/actuator/health || exit 1
+
+# Run application
+ENTRYPOINT ["java", \
+  "-Djava.security.egd=file:/dev/./urandom", \
+  "-Dspring.profiles.active=production", \
+  "-XX:+UseContainerSupport", \
+  "-XX:MaxRAMPercentage=75.0", \
+  "-XX:InitialRAMPercentage=50.0", \
+  "-jar", \
+  "/app.jar"]
+
+# JVM options for production
+# JAVA_OPTS: -Xms512m -Xmx1024m -XX:+UseG1GC -XX:+UseStringDeduplication
