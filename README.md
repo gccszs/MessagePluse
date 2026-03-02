@@ -1,5 +1,6 @@
 # MessagePulse 2.0 - AI 时代消息基础设施
 
+> 消息脉动，让消息传递如此简单
 > 一次集成，多渠道通达；智能向导，新平台即插即用。
 
 ---
@@ -109,8 +110,8 @@ OpenClaw → MessagePulse → 短信/邮件/飞书/微信...
 
 ```bash
 # 克隆仓库
-git clone https://github.com/your-org/messagepulse.git
-cd messagepulse
+git clone https://github.com/gccszs/MessagePluse.git
+cd MessagePluse
 
 # 启动基础设施
 docker-compose up -d
@@ -128,7 +129,8 @@ mvn spring-boot:run
 
 ## 📋 开发路线图
 
-- [x] Phase 1: 核心框架搭建
+- [x] Phase 0: 完整设计文档
+- [ ] Phase 1: 核心框架搭建
 - [ ] Phase 2: API 认证授权
 - [ ] Phase 3: Kafka 集成
 - [ ] Phase 4: 去重引擎
@@ -159,9 +161,8 @@ mvn spring-boot:run
 
 ## 📞 联系方式
 
-- 项目负责人: [待填写]
-- 技术讨论: [GitHub Discussions](链接)
-- 问题反馈: [GitHub Issues](链接)
+- GitHub: https://github.com/gccszs/MessagePluse
+- Issues: https://github.com/gccszs/MessagePluse/issues
 
 ---
 
