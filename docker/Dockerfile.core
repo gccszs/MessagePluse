@@ -3,8 +3,7 @@ FROM maven:3.8.6-eclipse-temurin-17 AS builder
 
 WORKDIR /app
 
-# Copy Maven wrapper and pom.xml
-COPY mvnw .COPY .mvn .mvn
+# Copy pom.xml
 COPY pom.xml .
 
 # Download dependencies (will be cached if pom.xml doesn't change)
@@ -19,18 +18,20 @@ RUN mvn clean package -DskipTests -B
 # Runtime stage
 FROM eclipse-temurin:17-jre-alpine
 
-# Add user for running the application
-RUN addgroup -S spring && adduser -S spring -G spring
-USER spring:spring
-
-# Install curl for health check
+# Install curl for health check (before switching user)
 RUN apk add --no-cache curl
 
-# Copy built artifact from builder stage
-COPY --from=builder /app/target/messagepulse-core*.jar app.jar
+# Add user for running the application
+RUN addgroup -S spring && adduser -S spring -G spring
 
 # Create directory for logs
-RUN mkdir /app/logs
+RUN mkdir -p /app/logs && chown spring:spring /app/logs
+
+# Copy built artifact from builder stage
+COPY --from=builder /app/target/messagepulse-core*.jar /app.jar
+RUN chown spring:spring /app.jar
+
+USER spring:spring
 
 # Expose ports
 EXPOSE 8080
@@ -48,6 +49,3 @@ ENTRYPOINT ["java", \
   "-XX:InitialRAMPercentage=50.0", \
   "-jar", \
   "/app.jar"]
-
-# JVM options for production
-# JAVA_OPTS: -Xms512m -Xmx1024m -XX:+UseG1GC -XX:+UseStringDeduplication

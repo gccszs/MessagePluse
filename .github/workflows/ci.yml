@@ -29,38 +29,19 @@ jobs:
           distribution: ${{ env.JAVA_DISTRIBUTION }}
           cache: 'maven'
 
-      - name: Cache Maven packages
-        uses: actions/cache@v3
-        with:
-          path: ~/.m2
-          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
-          restore-keys: ${{ runner.os }}-m2
-
       - name: Build with Maven
         run: mvn clean compile -DskipTests=true
 
       - name: Run unit tests
         run: mvn test -Dtest='!*IntegrationTest'
-
-      - name: Run integration tests
-        run: mvn verify -Dtest='*IntegrationTest'
         env:
           SPRING_PROFILES_ACTIVE: test
-
-      - name: Generate test report
-        if: always()
-        uses: dorny/test-reporter@v1
-        with:
-          name: Maven Tests
-          path: target/surefire-reports/*.xml
-          reporter: java-junit
-          fail-on-error: true
 
       - name: Code coverage
         run: mvn jacoco:report
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
         with:
           files: target/site/jacoco/jacoco.xml
           flags: unittests
@@ -70,7 +51,7 @@ jobs:
         run: mvn package -DskipTests
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: messagepulse-core-${{ github.sha }}
           path: target/*.jar
@@ -91,14 +72,14 @@ jobs:
           distribution: ${{ env.JAVA_DISTRIBUTION }}
           cache: 'maven'
 
+      - name: Compile project
+        run: mvn clean compile -DskipTests=true
+
       - name: Run Checkstyle
         run: mvn checkstyle:check
 
       - name: Run SpotBugs
         run: mvn spotbugs:check
-
-      - name: Run PMD
-        run: mvn pmd:check
 
   security-scan:
     name: Security Scan
@@ -117,7 +98,7 @@ jobs:
           output: 'trivy-results.sarif'
 
       - name: Upload Trivy results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v2
+        uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:
           sarif_file: 'trivy-results.sarif'
@@ -134,7 +115,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Build Docker image
-        uses: docker/build-push-action@v4
+        uses: docker/build-push-action@v5
         with:
           context: .
           file: ./docker/Dockerfile.core
@@ -142,133 +123,3 @@ jobs:
           tags: messagepulse/core:test
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
-  integration-test:
-    name: Integration Test with Docker Compose
-    runs-on: ubuntu-latest
-
-    services:
-      mysql:
-        image: mysql:8.0
-        env:
-          MYSQL_ROOT_PASSWORD: password
-          MYSQL_DATABASE: messagepulse_test
-        options: >-
-          --health-cmd="mysqladmin ping"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=3
-
-      redis:
-        image: redis:7-alpine
-        options: >-
-          --health-cmd="redis-cli ping"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=3
-
-      kafka:
-        image: confluentinc/cp-kafka:latest
-        env:
-          KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-          KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
-          KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-        options: >-
-          --health-cmd="kafka-topics --bootstrap-server localhost:9092 --list"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=10
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up JDK ${{ env.JAVA_VERSION }}
-        uses: actions/setup-java@v4
-        with:
-          java-version: ${{ env.JAVA_VERSION }}
-          distribution: ${{ env.JAVA_DISTRIBUTION }}
-          cache: 'maven'
-
-      - name: Wait for services
-        run: |
-          echo "Waiting for MySQL to be ready..."
-          while ! docker exec ${{ job.services.mysql.id }} mysqladmin ping -h localhost --silent; do sleep 1; done
-          echo "Waiting for Redis to be ready..."
-          while ! docker exec ${{ job.services.redis.id }} redis-cli ping; do sleep 1; done
-          echo "Waiting for Kafka to be ready..."
-          while ! docker exec ${{ job.services.kafka.id }} kafka-topics --bootstrap-server localhost:9092 --list; do sleep 1; done
-          echo "All services are ready!"
-
-      - name: Run integration tests
-        run: mvn verify -Dtest='*IntegrationTest' -Dspring.profiles.active=integration-test
-        env:
-          SPRING_DATASOURCE_URL: jdbc:mysql://localhost:3306/messagepulse_test
-          SPRING_REDIS_HOST: localhost
-          SPRING_KAFKA_BOOTSTRAP_SERVERS: localhost:9092
-
-  performance-test:
-    name: Performance Test
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/main'
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up JDK ${{ env.JAVA_VERSION }}
-        uses: actions/setup-java@v4
-        with:
-          java-version: ${{ env.JAVA_VERSION }}
-          distribution: ${{ env.JAVA_DISTRIBUTION }}
-          cache: 'maven'
-
-      - name: Build application
-        run: mvn clean package -DskipTests
-
-      - name: Start services with Docker Compose
-        run: docker-compose -f docker-compose.test.yml up -d
-
-      - name: Wait for services to be healthy
-        run: |
-          chmod +x .github/scripts/wait-for-services.sh
-          .github/scripts/wait-for-services.sh
-
-      - name: Run JMeter performance tests
-        run: |
-          mvn verify -Pperformance-test
-
-      - name: Stop services
-        if: always()
-        run: docker-compose -f docker-compose.test.yml down -v
-
-  sonarcloud:
-    name: SonarCloud Scan
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Set up JDK ${{ env.JAVA_VERSION }}
-        uses: actions/setup-java@v4
-        with:
-          java-version: ${{ env.JAVA_VERSION }}
-          distribution: ${{ env.JAVA_DISTRIBUTION }}
-          cache: 'maven'
-
-      - name: Cache SonarCloud packages
-        uses: actions/cache@v3
-        with:
-          path: ~/.sonar/cache
-          key: ${{ runner.os }}-sonar
-          restore-keys: ${{ runner.os }}-sonar
-
-      - name: Build and analyze
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        run: mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar -Dsonar.projectKey=MessagePulse

@@ -15,8 +15,21 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.H2Dialect
 
+  # Disable Kafka auto-configuration for unit tests
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.kafka.KafkaAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
+
   kafka:
     bootstrap-servers: localhost:9092
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password:
 
 # XXL-Job disabled for tests
 messagepulse:
@@ -25,6 +38,12 @@ messagepulse:
 
   flink:
     enabled: false
+
+  dedup:
+    bloom-filter:
+      expected-insertions: 1000
+      false-probability: 0.01
+      window-size-seconds: 60
 
 # Logging
 logging:
